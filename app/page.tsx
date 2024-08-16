@@ -7,19 +7,19 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { useEffect, useRef } from 'react';
 
 export default function Home() {
-  const mapContainer = useRef<any>();
+  const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map>();
 
   useEffect(() => {
     mapboxgl.accessToken = MAPBOX_KEY;
 
     map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      container: mapContainer.current as HTMLElement,
+      style: 'mapbox://styles/mapbox/standard',
       center: [DEFAULT_COORDINATES.lng, DEFAULT_COORDINATES.lat],
       zoom: DEFAULT_COORDINATES.zoom,
       pitch: 50,
-      bearing: -30,
+      bearing: 0,
       antialias: true,
     });
 
@@ -27,13 +27,15 @@ export default function Home() {
 
     myMap.on('load', () => {
       if (myMap) {
+        myMap.setConfigProperty('basemap', 'lightPreset', 'dusk');
+
         myMap.on('click', (e: MapMouseEvent) => {
           const features = myMap.queryRenderedFeatures(e.point);
           const feature = features?.[0];
 
           console.log('info', feature);
 
-          if (feature?.layer?.id === 'building') {
+          if (feature && feature?.layer?.id === 'building') {
             const displayProperties = [
               'type',
               'properties',
@@ -55,6 +57,11 @@ export default function Home() {
             });
 
             const info = JSON.stringify(formattedFeatures, null, 2);
+
+            myMap.setFeatureState(
+              { source: 'composite', id: feature?.id as string },
+              { hover: true },
+            );
 
             new mapboxgl.Popup()
               .setLngLat([e.lngLat.lng, e.lngLat.lat])
@@ -80,6 +87,7 @@ export default function Home() {
 
         myMap.on('mousemove', e => {
           const features = myMap.queryRenderedFeatures(e.point);
+
           const feature = features?.[0];
 
           if (feature?.layer?.id === 'building') {
@@ -90,8 +98,18 @@ export default function Home() {
             myMap.getCanvas().style.cursor = '';
           }
         });
+
+        myMap.setPaintProperty('Feature', 'icon-opacity', [
+          'match',
+          ['get', 'id'],
+          '156278492',
+          0.5,
+          1,
+        ]);
       }
     });
+
+    return () => myMap.remove();
   }, []);
 
   return (
